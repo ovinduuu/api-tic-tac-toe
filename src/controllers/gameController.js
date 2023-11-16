@@ -14,7 +14,14 @@ const startNewGame = async (req, res) => {
     }
 
     // Check if the player already has an ongoing game
-    const existingGame = await Game.findOne({ $or: [{ playerX: player._id }, { playerO: player._id }, { winner: null }] });
+    const existingGame = await Game.findOne({
+      $or: [
+        { playerX: player._id },
+        { playerO: player._id },
+      ],
+      winner: null
+    });
+    
     
     // If there's an existing game with only one player, assign the current player to that game
     if (existingGame && !existingGame.playerO) {
