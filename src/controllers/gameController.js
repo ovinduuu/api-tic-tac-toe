@@ -16,6 +16,7 @@ const startNewGame = async (req, res) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
+    // Check if the player already has an ongoing game
     const existingGame = await Game.findOne({
       $and: [
         {
@@ -28,17 +29,18 @@ const startNewGame = async (req, res) => {
       ]
     });
 
+    // If there's an existing game with only one player
     const emptyGame = await Game.findOne({ $or: [{ playerX: null }, { playerO: null }] });
 
     if (existingGame) {
       return res.status(400).json({ error: 'Player already in the game' });
     } else if (emptyGame) {
       emptyGame.playerO = player._id;
-      await emptyGame.save();
+      await emptyGame.save(); //save existing game with new player
       return res.status(200).json({ message: 'Player joined to the existing game', gameId: emptyGame._id, firstTurn });
     }
 
-    // Create a new game with both players assigned
+    // Create a new game
     const newGame = new Game({
       playerX: player._id,
       playerO: null,
@@ -47,6 +49,7 @@ const startNewGame = async (req, res) => {
       winner: null,
     });
 
+    // Save new game
     if (!emptyGame) {
       await newGame.save();
       return res.status(201).json({ message: 'New game started', gameId: newGame._id, firstTurn });
