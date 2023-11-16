@@ -9,42 +9,49 @@ const startNewGame = async (req, res) => {
     // Find the player by username
     const player = await Player.findOne({ username });
 
+    // Choose randomly who goes first (X or O)
+    const firstTurn = Math.random() < 0.5 ? 'X' : 'O';
+
     if (!player) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    // Check if the player already has an ongoing game
     const existingGame = await Game.findOne({
-      $or: [
-        { playerX: player._id },
-        { playerO: player._id },
-      ],
-      winner: null
+      $and: [
+        {
+          $or: [
+            { playerX: player._id },
+            { playerO: player._id },
+          ]
+        },
+        { winner: null }
+      ]
     });
-    
-    
-    // If there's an existing game with only one player, assign the current player to that game
-    if (existingGame && !existingGame.playerO) {
-      existingGame.playerO = player._id;
-      existingGame.turn = Math.random() < 0.5 ? 'X' : 'O';
-      await existingGame.save();
-      return res.status(200).json({ message: 'Joined an existing game', gameId: existingGame._id, firstTurn: existingGame.turn });
-    }
 
-    // Choose randomly who goes first (X or O)
-    const firstTurn = Math.random() < 0.5 ? 'X' : 'O';
+    const emptyGame = await Game.findOne({ $or: [{ playerX: null }, { playerO: null }] });
+
+    if (existingGame) {
+      return res.status(400).json({ error: 'Player already in the game' });
+    } else if (emptyGame) {
+      emptyGame.playerO = player._id;
+      await emptyGame.save();
+      return res.status(200).json({ message: 'Player joined to the existing game', gameId: emptyGame._id, firstTurn });
+    }
 
     // Create a new game with both players assigned
     const newGame = new Game({
       playerX: player._id,
-      playerO: null, // If there's no other player, set playerO to null
+      playerO: null,
       board: Array(9).fill(null),
       turn: firstTurn,
       winner: null,
     });
-    await newGame.save();
 
-    return res.status(201).json({ message: 'New game started', gameId: newGame._id, firstTurn });
+    if (!emptyGame) {
+      await newGame.save();
+      return res.status(201).json({ message: 'New game started', gameId: newGame._id, firstTurn });
+    }
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Internal Server Error' });
